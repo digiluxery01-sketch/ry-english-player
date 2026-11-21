@@ -32,6 +32,12 @@ body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-app
 .opt button{height:40px;border-radius:20px;border:1px solid #2a303a;background:transparent;color:#fff;font-weight:700;padding:0 14px}
 .opt button.on{background:#fff;color:#111}
 .note{font-size:12px;color:var(--mute);margin-top:14px;text-align:center}
+.vid{position:sticky;top:0;z-index:5}
+.tl{margin-top:18px}.tl h3{font-size:15px;margin:0 0 8px;color:#9aa3af;font-weight:800;letter-spacing:.02em}
+.tl .more{width:100%;height:42px;border-radius:12px;border:1px dashed #2a303a;background:transparent;color:#cbd2dc;font-weight:700;margin-bottom:8px}
+.row{display:block;width:100%;text-align:left;background:var(--card);border:0;border-radius:14px;padding:12px 14px;margin:0 0 8px;color:var(--ink);font:inherit;-webkit-tap-highlight-color:transparent}
+.row .t{font-size:12px;color:var(--red);font-weight:800}.row .e{font-size:16px;line-height:1.45;margin-top:2px}.row .i{font-size:14px;color:var(--teal);font-style:italic;margin-top:4px}
+.row.cur{box-shadow:0 0 0 2px var(--red) inset}.noid .row .i{display:none}
 </style>
 </head>
 <body>
@@ -47,21 +53,22 @@ body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-app
     <button id="bShadow" aria-label="Mode tirukan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 12h3l3-7 4 14 3-7h3"/></svg>Tirukan</button>
     <button id="bStop" aria-label="Stop"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>Stop</button>
   </div>
-  <div class="opt"><button data-r="1" class="on">1×</button><button data-r="0.75">0,75×</button><button data-r="0.5">0,5×</button><button id="bSub" class="on">Terjemahan</button></div>
+  <div class="opt"><button data-r="1" class="on">1×</button><button data-r="0.75">0,75×</button><button data-r="0.5">0,5×</button><button id="bSub" class="on">Terjemahan</button><button id="bAuto">Lanjut otomatis</button></div>
+  <div class="tl" id="tl" hidden><h3>Transkrip — ketuk kalimat untuk memutarnya</h3><button class="more" id="more" hidden></button><div id="rows"></div></div>
   <p class="note">Video diputar dari YouTube sumber, hanya bagian kalimat ini. Mode Tirukan: video diputar, lalu jeda untuk giliranmu, lalu diulang.</p>
 </div>
 <script>
 {
 const P=new URLSearchParams(location.hash.slice(1));
 const V=(P.get("v")||"").replace(/[^A-Za-z0-9_-]/g,"");
-const S=Math.max(0,parseFloat(P.get("s")||"0")||0), E=parseFloat(P.get("e")||"0")||0;
-const EN=P.get("en")||"", ID=P.get("id")||"";
+let S=Math.max(0,parseFloat(P.get("s")||"0")||0), E=parseFloat(P.get("e")||"0")||0;
+let EN=P.get("en")||"", ID=P.get("id")||"";
 const back=P.get("back");if(back&&/^https:\/\/claude\.ai\//.test(back))document.getElementById("back").href=back;
 document.getElementById("back").onclick=e=>{e.preventDefault();const u=document.getElementById("back").href;try{player&&player.pauseVideo&&player.pauseVideo()}catch(_){}try{window.close()}catch(_){}setTimeout(()=>{if(history.length>1)history.back();else location.href=u},350)};
 const $=x=>document.getElementById(x);
 const fmt=x=>{x=Math.max(0,Math.floor(x));return Math.floor(x/60)+":"+String(x%60).padStart(2,"0")};
 $("en").textContent=EN;$("idt").textContent=ID;$("tr").textContent=fmt(S)+"–"+fmt(E||S);
-let player=null,ready=false,timer=null,shadow=false,shadowTok=0,rate=1,state=-1,DUR=0,loaded=false,seg=false;
+let L=null,cur=-1,auto=false,shown=0,player=null,ready=false,timer=null,shadow=false,shadowTok=0,rate=1,state=-1,DUR=0,loaded=false,seg=false;
 const st=t=>$("st").textContent=t;
 const isContent=()=>{try{const d=player.getDuration();return !DUR||Math.abs(d-DUR)<3}catch(_){return false}};
 function tick(){clearInterval(timer);timer=setInterval(()=>{if(!ready||state!==1||!isContent())return;const t=player.getCurrentTime();
@@ -71,7 +78,7 @@ function tick(){clearInterval(timer);timer=setInterval(()=>{if(!ready||state!==1
 function playSeg(){if(!ready)return;st(shadow?"Dengarkan…":"");$("pg").style.width="0";seg=true;
   if(loaded&&DUR){player.seekTo(S,true);player.playVideo()}
   else player.loadVideoById({videoId:V,startSeconds:S,endSeconds:E||undefined});tick()}
-function onEnd(){seg=false;$("pg").style.width="100%";if(!shadow){st("Selesai — ketuk Ulangi untuk mendengar lagi");return}
+function onEnd(){seg=false;$("pg").style.width="100%";if(!shadow){if(auto&&L&&cur<L.length-1){st("Lanjut ke kalimat berikutnya…");setTimeout(()=>{if(auto)setLine(cur+1,true)},600);return}st("Selesai — ketuk Ulangi atau pilih kalimat di bawah");return}
   const tok=++shadowTok;const gap=Math.min(12000,((E-S)/rate)*1000*1.1+800);st("Giliranmu! Tirukan sekarang…");
   setTimeout(()=>{if(tok===shadowTok&&shadow)playSeg()},gap)}
 function stopAll(){shadow=false;shadowTok++;$("bShadow").classList.remove("on");if(ready){player.pauseVideo()}st("Berhenti");$("pg").style.width="0"}
@@ -80,7 +87,25 @@ $("bAgain").onclick=()=>{shadowTok++;playSeg()};
 $("bShadow").onclick=()=>{shadow=!shadow;shadowTok++;$("bShadow").classList.toggle("on",shadow);if(shadow)playSeg();else st("")};
 $("bStop").onclick=stopAll;
 document.querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>{rate=+b.dataset.r;document.querySelectorAll("[data-r]").forEach(x=>x.classList.toggle("on",x===b));if(ready)player.setPlaybackRate(rate)});
-$("bSub").onclick=()=>{const on=$("idt").hidden;$("idt").hidden=!on;$("bSub").classList.toggle("on",on)};
+$("bSub").onclick=()=>{const on=$("idt").hidden;$("idt").hidden=!on;$("bSub").classList.toggle("on",on);document.body.classList.toggle("noid",!on)};
+$("bAuto").onclick=()=>{auto=!auto;$("bAuto").classList.toggle("on",auto)};
+function rowHtml(k){const l=L[k];const b=document.createElement("button");b.className="row"+(k===cur?" cur":"");b.dataset.k=k;
+  const t=document.createElement("div");t.className="t";t.textContent="▶ "+fmt(l[0])+"–"+fmt(l[1]);const en=document.createElement("div");en.className="e";en.textContent=l[2];
+  const id=document.createElement("div");id.className="i";id.textContent=l[3]||"";b.append(t,en,id);b.onclick=()=>setLine(k,true);return b}
+function renderRows(){const box=$("rows");box.replaceChildren();for(let k=shown;k<L.length;k++)box.appendChild(rowHtml(k));
+  const m=$("more");m.hidden=shown<=0;m.textContent="↑ Tampilkan "+shown+" kalimat sebelumnya"}
+$("more").onclick=()=>{shown=0;renderRows()};
+function setLine(k,play){if(!L||!L[k])return;cur=k;[S,E,EN,ID]=L[k];$("en").textContent=EN;$("idt").textContent=ID;$("tr").textContent=fmt(S)+"–"+fmt(E);$("tc").textContent=fmt(S);
+  document.querySelectorAll(".row").forEach(r=>r.classList.toggle("cur",+r.dataset.k===k));
+  if(k<shown){shown=k;renderRows()}
+  const r=document.querySelector('.row[data-k="'+k+'"]');if(r){const vh=document.querySelector(".vid").offsetHeight;window.scrollTo({top:Math.max(0,r.getBoundingClientRect().top+scrollY-vh-12),behavior:"smooth"})}
+  try{history.replaceState(null,"","#"+[...P].filter(([a])=>!["s","e","en","id","i"].includes(a)).map(([a,b])=>a+"="+encodeURIComponent(b)).concat(["v="+V,"s="+S,"e="+E,"i="+k]).filter((x,i,a)=>a.indexOf(x)===i).join("&"))}catch(_){}
+  if(play){shadowTok++;playSeg()}}
+(async()=>{const z=P.get("z");if(!z||!window.DecompressionStream)return;try{
+  const b=atob(z.replace(/-/g,"+").replace(/_/g,"/"));const u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);
+  const txt=await new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).text();const d=JSON.parse(txt);
+  L=d.L;let k=parseInt(P.get("i")||"-1");if(!(k>=0&&k<L.length)){k=0;let best=1e9;L.forEach((l,i)=>{const x=Math.abs(l[0]-S);if(x<best){best=x;k=i}})}
+  cur=k;shown=k;$("tl").hidden=false;renderRows()}catch(e){}})();
 if(!V){st("Link video tidak valid.")}
 else{
   window.onYouTubeIframeAPIReady=()=>{player=new YT.Player("yt",{host:"https://www.youtube-nocookie.com",videoId:V,
