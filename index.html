@@ -60,6 +60,10 @@ body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-app
 <script>
 {
 const P=new URLSearchParams(location.hash.slice(1));
+/* transkrip (z) dipindah ke sessionStorage & dibuang dari URL: URL panjang membuat embed YouTube gagal */
+let ZD=P.get("z");try{if(ZD)sessionStorage.setItem("ryz"+P.get("v"),ZD);else ZD=sessionStorage.getItem("ryz"+P.get("v"))}catch(_){}
+const shortHash=(o)=>{const q=new URLSearchParams();["v","s","e","i","back"].forEach(k=>{const x=o[k]!=null?o[k]:P.get(k);if(x!=null&&x!=="")q.set(k,x)});return "#"+q.toString()};
+try{if(P.get("z"))history.replaceState(null,"",location.pathname+location.search+shortHash({}))}catch(_){}
 const V=(P.get("v")||"").replace(/[^A-Za-z0-9_-]/g,"");
 let S=Math.max(0,parseFloat(P.get("s")||"0")||0), E=parseFloat(P.get("e")||"0")||0;
 let EN=P.get("en")||"", ID=P.get("id")||"";
@@ -99,13 +103,13 @@ function setLine(k,play){if(!L||!L[k])return;cur=k;[S,E,EN,ID]=L[k];$("en").text
   document.querySelectorAll(".row").forEach(r=>r.classList.toggle("cur",+r.dataset.k===k));
   if(k<shown){shown=k;renderRows()}
   const r=document.querySelector('.row[data-k="'+k+'"]');if(r){const vh=document.querySelector(".vid").offsetHeight;window.scrollTo({top:Math.max(0,r.getBoundingClientRect().top+scrollY-vh-12),behavior:"smooth"})}
-  try{history.replaceState(null,"","#"+[...P].filter(([a])=>!["s","e","en","id","i"].includes(a)).map(([a,b])=>a+"="+encodeURIComponent(b)).concat(["v="+V,"s="+S,"e="+E,"i="+k]).filter((x,i,a)=>a.indexOf(x)===i).join("&"))}catch(_){}
+  try{history.replaceState(null,"",location.pathname+location.search+shortHash({s:S,e:E,i:k}))}catch(_){}
   if(play){shadowTok++;playSeg()}}
-(async()=>{const z=P.get("z");if(!z||!window.DecompressionStream)return;try{
+(async()=>{const z=ZD;if(!z||!window.DecompressionStream)return;try{
   const b=atob(z.replace(/-/g,"+").replace(/_/g,"/"));const u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);
   const txt=await new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).text();const d=JSON.parse(txt);
   L=d.L;let k=parseInt(P.get("i")||"-1");if(!(k>=0&&k<L.length)){k=0;let best=1e9;L.forEach((l,i)=>{const x=Math.abs(l[0]-S);if(x<best){best=x;k=i}})}
-  cur=k;shown=k;$("tl").hidden=false;renderRows()}catch(e){}})();
+  cur=k;shown=k;if(!EN){[S,E,EN,ID]=L[k];$("en").textContent=EN;$("idt").textContent=ID;$("tr").textContent=fmt(S)+"–"+fmt(E)}$("tl").hidden=false;renderRows()}catch(e){}})();
 if(!V){st("Link video tidak valid.")}
 else{
   window.onYouTubeIframeAPIReady=()=>{player=new YT.Player("yt",{host:"https://www.youtube-nocookie.com",videoId:V,
