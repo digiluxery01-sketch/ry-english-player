@@ -60,13 +60,17 @@ const back=P.get("back");if(back&&/^https:\/\/claude\.ai\//.test(back))document.
 const $=x=>document.getElementById(x);
 const fmt=x=>{x=Math.max(0,Math.floor(x));return Math.floor(x/60)+":"+String(x%60).padStart(2,"0")};
 $("en").textContent=EN;$("idt").textContent=ID;$("tr").textContent=fmt(S)+"–"+fmt(E||S);
-let player=null,ready=false,timer=null,shadow=false,shadowTok=0,rate=1,state=-1;
+let player=null,ready=false,timer=null,shadow=false,shadowTok=0,rate=1,state=-1,DUR=0,loaded=false,seg=false;
 const st=t=>$("st").textContent=t;
-function tick(){clearInterval(timer);timer=setInterval(()=>{if(!ready||state!==1)return;const t=player.getCurrentTime();if(t<S-1||(E&&t>E+2))return;
-  $("tc").textContent=fmt(t);const span=Math.max(.5,(E||S+8)-S);$("pg").style.width=Math.min(100,Math.max(0,(t-S)/span*100))+"%"},150)}
-function playSeg(){if(!ready)return;st(shadow?"Dengarkan…":"");$("pg").style.width="0";
-  player.loadVideoById({videoId:V,startSeconds:S,endSeconds:E||undefined});tick()}
-function onEnd(){$("pg").style.width="100%";if(!shadow){st("Selesai — ketuk Ulangi untuk mendengar lagi");return}
+const isContent=()=>{try{const d=player.getDuration();return !DUR||Math.abs(d-DUR)<3}catch(_){return false}};
+function tick(){clearInterval(timer);timer=setInterval(()=>{if(!ready||state!==1||!isContent())return;const t=player.getCurrentTime();
+  if(seg&&DUR&&E&&t>=E){seg=false;player.pauseVideo();onEnd();return}
+  if(t<S-1||(E&&t>E+2))return;
+  $("tc").textContent=fmt(t);const span=Math.max(.5,(E||S+8)-S);$("pg").style.width=Math.min(100,Math.max(0,(t-S)/span*100))+"%"},120)}
+function playSeg(){if(!ready)return;st(shadow?"Dengarkan…":"");$("pg").style.width="0";seg=true;
+  if(loaded&&DUR){player.seekTo(S,true);player.playVideo()}
+  else player.loadVideoById({videoId:V,startSeconds:S,endSeconds:E||undefined});tick()}
+function onEnd(){seg=false;$("pg").style.width="100%";if(!shadow){st("Selesai — ketuk Ulangi untuk mendengar lagi");return}
   const tok=++shadowTok;const gap=Math.min(12000,((E-S)/rate)*1000*1.1+800);st("Giliranmu! Tirukan sekarang…");
   setTimeout(()=>{if(tok===shadowTok&&shadow)playSeg()},gap)}
 function stopAll(){shadow=false;shadowTok++;$("bShadow").classList.remove("on");if(ready){player.pauseVideo()}st("Berhenti");$("pg").style.width="0"}
@@ -80,8 +84,8 @@ if(!V){st("Link video tidak valid.")}
 else{
   window.onYouTubeIframeAPIReady=()=>{player=new YT.Player("yt",{host:"https://www.youtube-nocookie.com",videoId:V,
     playerVars:{start:Math.floor(S),end:E?Math.ceil(E):undefined,playsinline:1,rel:0,modestbranding:1,autoplay:1,controls:1,origin:location.origin},
-    events:{onReady:()=>{ready=true;st("");tick()},
-      onStateChange:e=>{state=e.data;if(e.data===1){try{player.setPlaybackRate(rate)}catch(_){}}if(e.data===0)onEnd()},
+    events:{onReady:()=>{ready=true;seg=true;st("");tick()},
+      onStateChange:e=>{state=e.data;if(e.data===1){try{player.setPlaybackRate(rate)}catch(_){}}if(e.data===1&&!DUR){/* first content frame after any ad */}if(e.data===0){loaded=true;try{const d=player.getDuration();if(d>0)DUR=d}catch(_){}if(seg||!DUR||true)onEnd()}},
       onError:e=>st("Video tidak bisa diputar di sini (kode "+e.data+").")}})};
   const sc=document.createElement("script");sc.src="https://www.youtube.com/iframe_api";document.head.appendChild(sc);
 }
