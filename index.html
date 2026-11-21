@@ -36,7 +36,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-app
 </head>
 <body>
 <div class="wrap">
-  <div class="top"><span class="logo">RY</span><b>RY. ENGLISH</b><a id="back" href="https://claude.ai/artifact/WVVh7eDuViwhrGbuBafszn">← Aplikasi</a></div>
+  <div class="top"><span class="logo">RY</span><b>RY. ENGLISH</b><a id="back" href="https://claude.ai/artifact/WVVh7eDuViwhrGbuBafszn">← Transkrip</a></div>
   <div class="vid"><div id="yt"></div></div>
   <div class="bar"><i id="pg"></i></div>
   <div class="time"><span id="tc">0:00</span><span id="tr">0:00–0:00</span></div>
@@ -57,6 +57,7 @@ const V=(P.get("v")||"").replace(/[^A-Za-z0-9_-]/g,"");
 const S=Math.max(0,parseFloat(P.get("s")||"0")||0), E=parseFloat(P.get("e")||"0")||0;
 const EN=P.get("en")||"", ID=P.get("id")||"";
 const back=P.get("back");if(back&&/^https:\/\/claude\.ai\//.test(back))document.getElementById("back").href=back;
+document.getElementById("back").onclick=e=>{e.preventDefault();const u=document.getElementById("back").href;try{player&&player.pauseVideo&&player.pauseVideo()}catch(_){}try{window.close()}catch(_){}setTimeout(()=>{if(history.length>1)history.back();else location.href=u},350)};
 const $=x=>document.getElementById(x);
 const fmt=x=>{x=Math.max(0,Math.floor(x));return Math.floor(x/60)+":"+String(x%60).padStart(2,"0")};
 $("en").textContent=EN;$("idt").textContent=ID;$("tr").textContent=fmt(S)+"–"+fmt(E||S);
