@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>RY. ENGLISH · Pemutar per kalimat</title>
+<meta name="robots" content="noindex">
+<style>
+:root{--red:#d4202c;--blue:#1f5fd1;--teal:#5fd0c4;--bg:#0d1015;--card:#171b22;--ink:#eef0f3;--mute:#9aa3ad}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+.wrap{max-width:760px;margin:0 auto;padding:10px 12px 24px}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--red) 50%,var(--blue) 50%);display:grid;place-items:center;font-weight:900;color:#fff;font-size:14px;flex:none}
+.top b{font-size:16px;letter-spacing:.02em}
+.top a{margin-left:auto;color:#fff;text-decoration:none;font-weight:700;font-size:14px;background:var(--card);border:1px solid #2a303a;border-radius:20px;padding:8px 14px}
+.vid{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:14px;overflow:hidden}
+.vid>div,.vid iframe{position:absolute;inset:0;width:100%;height:100%}
+.bar{height:6px;border-radius:3px;background:#262c35;overflow:hidden;margin:10px 0 4px}
+.bar i{display:block;height:100%;width:0;background:var(--red)}
+.time{display:flex;justify-content:space-between;font-size:12px;color:var(--mute);font-weight:700}
+.sub{background:var(--card);border-radius:16px;padding:14px;margin-top:10px}
+.en{font-size:clamp(19px,5vw,23px);font-weight:800;line-height:1.35}
+.id{font-size:clamp(16px,4.4vw,19px);color:var(--teal);font-style:italic;margin-top:6px}
+.st{font-size:13px;font-weight:800;color:#ffcc33;min-height:20px;margin-top:8px}
+.ctl{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}
+.ctl button{height:56px;border:0;border-radius:14px;background:var(--card);color:#fff;font-weight:800;font-size:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;-webkit-tap-highlight-color:transparent}
+.ctl button svg{width:22px;height:22px}
+.ctl button.red{background:var(--red)}.ctl button.on{box-shadow:0 0 0 2px var(--teal) inset;color:var(--teal)}
+.opt{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.opt button{height:40px;border-radius:20px;border:1px solid #2a303a;background:transparent;color:#fff;font-weight:700;padding:0 14px}
+.opt button.on{background:#fff;color:#111}
+.note{font-size:12px;color:var(--mute);margin-top:14px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><span class="logo">RY</span><b>RY. ENGLISH</b><a id="back" href="https://claude.ai/artifact/WVVh7eDuViwhrGbuBafszn">← Aplikasi</a></div>
+  <div class="vid"><div id="yt"></div></div>
+  <div class="bar"><i id="pg"></i></div>
+  <div class="time"><span id="tc">0:00</span><span id="tr">0:00–0:00</span></div>
+  <div class="sub"><div class="en" id="en"></div><div class="id" id="idt"></div><div class="st" id="st">Memuat video…</div></div>
+  <div class="ctl">
+    <button id="bPlay" class="red" aria-label="Putar kalimat"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"/></svg>Putar</button>
+    <button id="bAgain" aria-label="Ulangi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.5-5.8"/><path d="M4 4v5h5"/></svg>Ulangi</button>
+    <button id="bShadow" aria-label="Mode tirukan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 12h3l3-7 4 14 3-7h3"/></svg>Tirukan</button>
+    <button id="bStop" aria-label="Stop"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>Stop</button>
+  </div>
+  <div class="opt"><button data-r="1" class="on">1×</button><button data-r="0.75">0,75×</button><button data-r="0.5">0,5×</button><button id="bSub" class="on">Terjemahan</button></div>
+  <p class="note">Video diputar dari YouTube sumber, hanya bagian kalimat ini. Mode Tirukan: video diputar, lalu jeda untuk giliranmu, lalu diulang.</p>
+</div>
+<script>
+{
+const P=new URLSearchParams(location.hash.slice(1));
+const V=(P.get("v")||"").replace(/[^A-Za-z0-9_-]/g,"");
+const S=Math.max(0,parseFloat(P.get("s")||"0")||0), E=parseFloat(P.get("e")||"0")||0;
+const EN=P.get("en")||"", ID=P.get("id")||"";
+const back=P.get("back");if(back&&/^https:\/\/claude\.ai\//.test(back))document.getElementById("back").href=back;
+const $=x=>document.getElementById(x);
+const fmt=x=>{x=Math.max(0,Math.floor(x));return Math.floor(x/60)+":"+String(x%60).padStart(2,"0")};
+$("en").textContent=EN;$("idt").textContent=ID;$("tr").textContent=fmt(S)+"–"+fmt(E||S);
+let player=null,ready=false,timer=null,shadow=false,shadowTok=0,rate=1;
+const st=t=>$("st").textContent=t;
+function playSeg(){if(!ready)return;clearInterval(timer);player.setPlaybackRate(rate);player.seekTo(S,true);player.playVideo();st(shadow?"Dengarkan…":"");
+  timer=setInterval(()=>{const t=player.getCurrentTime?player.getCurrentTime():0;$("tc").textContent=fmt(t);
+    const span=Math.max(.5,(E||S+8)-S);$("pg").style.width=Math.min(100,Math.max(0,(t-S)/span*100))+"%";
+    if(E&&t>=E){player.pauseVideo();clearInterval(timer);$("pg").style.width="100%";onEnd()}},120)}
+function onEnd(){if(!shadow){st("Selesai — ketuk Ulangi untuk mendengar lagi");return}
+  const tok=++shadowTok;const gap=Math.min(12000,((E-S)/rate)*1000*1.1+800);st("Giliranmu! Tirukan sekarang…");
+  setTimeout(()=>{if(tok===shadowTok&&shadow)playSeg()},gap)}
+function stopAll(){shadow=false;shadowTok++;$("bShadow").classList.remove("on");clearInterval(timer);if(ready){player.pauseVideo();player.seekTo(S,true)}st("Berhenti");$("pg").style.width="0"}
+$("bPlay").onclick=()=>{shadow=false;shadowTok++;$("bShadow").classList.remove("on");playSeg()};
+$("bAgain").onclick=()=>{shadowTok++;playSeg()};
+$("bShadow").onclick=()=>{shadow=!shadow;shadowTok++;$("bShadow").classList.toggle("on",shadow);if(shadow)playSeg();else st("")};
+$("bStop").onclick=stopAll;
+document.querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>{rate=+b.dataset.r;document.querySelectorAll("[data-r]").forEach(x=>x.classList.toggle("on",x===b));if(ready)player.setPlaybackRate(rate)});
+$("bSub").onclick=()=>{const on=$("idt").hidden;$("idt").hidden=!on;$("bSub").classList.toggle("on",on)};
+if(!V){st("Link video tidak valid.")}
+else{
+  window.onYouTubeIframeAPIReady=()=>{player=new YT.Player("yt",{host:"https://www.youtube-nocookie.com",videoId:V,
+    playerVars:{start:Math.floor(S),end:E?Math.ceil(E):undefined,playsinline:1,rel:0,modestbranding:1,autoplay:1,controls:1,origin:location.origin},
+    events:{onReady:()=>{ready=true;st("");playSeg()},onError:e=>st("Video tidak bisa diputar di sini (kode "+e.data+").")}})};
+  const sc=document.createElement("script");sc.src="https://www.youtube.com/iframe_api";document.head.appendChild(sc);
+}
+}
+</script>
+</body>
+</html>
